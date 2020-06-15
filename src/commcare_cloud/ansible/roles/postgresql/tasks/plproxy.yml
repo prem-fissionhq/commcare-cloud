@@ -7,7 +7,7 @@
     name: plproxy
     db: "{{ item.name }}"
     port: "{{ postgresql_port }}"
-  when: postgresql_dbs.form_processing and item.host == inventory_hostname
+  when: postgresql_dbs.form_processing and item.host == inventory_hostname and state == 'present'
 
 - name: Make plproxy a trusted language
   become: yes
@@ -19,7 +19,7 @@
     trust: True
     db: "{{ item.name }}"
     port: "{{ postgresql_port }}"
-  when: postgresql_dbs.form_processing and item.host == inventory_hostname
+  when: postgresql_dbs.form_processing and item.host == inventory_hostname and state == 'present'
 
 - name: Grant usage on plproxy FDW
   become: yes
@@ -27,4 +27,4 @@
   vars:
     ansible_ssh_pipelining: true
   shell: "{{postgres_install_dir}}/bin/psql -U postgres -p {{postgresql_port}} {{ item.name }} -c \"GRANT USAGE on FOREIGN DATA WRAPPER plproxy to \\\"{{ item.user }}\\\"\""
-  when: postgresql_dbs.form_processing and item.host == inventory_hostname
+  when: postgresql_dbs.form_processing and item.host == inventory_hostname and state == 'present'

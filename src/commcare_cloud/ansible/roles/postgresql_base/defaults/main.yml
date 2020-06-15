@@ -62,3 +62,5 @@ postgresql_binary: "postgresql-{{ postgresql_version }}"
 postgresql_shared_preload_libraries:
  - 'pg_stat_statements'
 postgresql_hba_entries: []
+
+state: present

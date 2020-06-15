@@ -2,21 +2,22 @@
 # roles/postgresql/tasks/main.yml
 
 - name: Add PosgreSQL apt repo
-  apt_repository: repo='{{ postgresql_apt_repo }}' state=present
+  apt_repository: repo='{{ postgresql_apt_repo }}' state='{{ state }}'
   register: add_postgresql_repo
 
 - name: Add PosgreSQL apt key
-  apt_key: url={{ postgresql_apt_key_url }} state=present
+  apt_key: url={{ postgresql_apt_key_url }} state='{{ state }}'
+  when: state == 'present'
 
 - name: Update package list
   apt: update_cache=yes
   when: add_postgresql_repo is changed
 
 - name: generate en_US.UTF-8 locale
-  locale_gen: name='en_US.UTF-8' state=present
+  locale_gen: name='en_US.UTF-8' state='{{ state }}'
 
 - name: Install PostgreSQL
-  apt: name="{{postgresql_binary}}" state=present
+  apt: name="{{postgresql_binary}}" state='{{ state }}'
 
 - name: Install dependencies
   apt:
@@ -28,19 +29,20 @@
       - libpq-dev
       - python-psycopg2
       - unzip
+  when: state == 'present'
 
 - name: Install PostgreSQL & dependencies (bionic)
   apt:
     name:
       - python3-docutils  # required for building pghashlib
       - python3-psycopg2
-  when: ansible_distribution_version == '18.04'
+  when: ansible_distribution_version == '18.04' and state == 'present'
 
 - name: Install pglogical
   apt:
     name:
       - postgresql-9.6-pglogical
-  when: postgresql_wal_level == 'logical'
+  when: postgresql_wal_level == 'logical' and state == 'present'
 
 
 - name: Create service config folder
@@ -51,6 +53,7 @@
     group: root
     mode: 0755
     state: directory
+  when: state == 'present'
 
 - name: Configure service limits
   become: yes
@@ -63,6 +66,7 @@
   notify:
     - Restart postgres
     - reload systemd
+  when: state == 'present'
 
 - name: Ensure PostgreSQL data directory exists.
   file:
@@ -71,6 +75,7 @@
     group: postgres
     state: directory
     mode: 0700
+  when: state == 'present'
 
 - name: Check if PostgreSQL database is initialized.
   stat:
@@ -82,6 +87,8 @@
   when: not pgdata_dir_version.stat.exists
   become: true
   become_user: postgres
+  ignore_errors: yes
+  when: state == 'present'
 
 - name: assert hot standby config correct
   assert: { that: "hot_standby_server is not defined or hot_standby_server in groups.pg_standby"}
@@ -92,7 +99,8 @@
     state: directory
     owner: postgres
     group: postgres
-
+  when: state == 'present'
+  
 - name: assert replication slot config correct
   assert: { that: "replication_slot is not defined or replication_slot in hostvars[hot_standby_master]['postgresql_replication_slots']"}
 
@@ -103,7 +111,7 @@
     state: directory
     owner: postgres
     group: postgres
-  when: postgresql_enable_archive|bool and not is_pg_standby|bool
+  when: postgresql_enable_archive|bool and not is_pg_standby|bool and state == 'present'
 
 - name: Create clean WAL archive cron
   become: yes
@@ -114,16 +122,19 @@
     minute: "*/30"
     cron_file: clean_pg_archive
     state: "{{ 'present' if postgresql_enable_archive and not is_pg_standby and not disable_archive_cleanup_cron else 'absent' }}"
+  when: state == 'present'
 
 - name: PostgreSQL app configuration
   template: src=postgresql.conf.j2 dest="{{ postgresql_config_home }}/postgresql.conf" owner="postgres"
   tags: configure
   notify: Restart postgres
+  when: state == 'present'
 
 - name: PostgreSQL access configuration
   template: src=pg_hba.conf.j2 dest="{{ postgresql_config_home }}/pg_hba.conf" owner="postgres"
   tags: configure
   notify: Reload postgres
+  when: state == 'present'
 
 - meta: flush_handlers
 
@@ -134,6 +145,7 @@
     postgresql_host: "{{ inventory_hostname }}"
   tags:
     - configure
+  when: state == 'present'
 
 # restart / reload if necessary to make sure replication slot config updated
 - meta: flush_handlers
@@ -148,6 +160,7 @@
   notify: Start postgres
   when: no_tags is not defined
   tags: after-reboot
+  when: state == 'present'
 
 - name: Create replication slots
   pg_replication_slot:
@@ -159,7 +172,7 @@
   vars:
     ansible_ssh_pipelining: true
   with_items: "{{ postgresql_replication_slots|default([]) }}"
-  when: not is_pg_standby
+  when: not is_pg_standby and state == 'present'
   tags:
     - replication
     - configure
@@ -169,7 +182,7 @@
   stat:
     path: "{{ postgresql_recovery_conf }}"
   register: recovery_file
-  when: is_pg_standby|bool
+  when: is_pg_standby|bool and state == 'present'
   tags:
     - postgres_users
     - replication
@@ -179,7 +192,7 @@
   template:
     src: recovery.conf.j2
     dest: "{{ postgresql_recovery_conf }}"
-  when: is_pg_standby and recovery_file.stat.exists
+  when: is_pg_standby and recovery_file.stat.exists and state == 'present'
   tags:
     - postgres_users
     - replication
@@ -191,7 +204,7 @@
   vars:
     ansible_ssh_pipelining: true
   shell: "{{postgres_install_dir}}/bin/psql -U postgres -p {{postgresql_port}} {{item.name}} -c \"CREATE EXTENSION IF NOT EXISTS pg_stat_statements\""
-  when: item.query_stats and not is_pg_standby and (item.host == inventory_hostname) or is_monolith|bool
+  when: item.query_stats and not is_pg_standby and (item.host == inventory_hostname) or is_monolith|bool and state == 'present'
   with_items: "{{ postgresql_dbs.all }}"
   tags:
     - configure
@@ -207,6 +220,7 @@
     backup: yes
   tags:
     - cron
+  when: state == 'present'
 
 - name: Create log rotation cron
   become: yes
@@ -218,6 +232,7 @@
     cron_file: rotate_postgres
   tags:
     - cron
+  when: state == 'present'
 
 - name: PostgreSQL monit config
   become: yes
@@ -229,6 +244,7 @@
     mode: 0640
   notify: reload monit
   tags: monit
+  when: state == 'present'
 
 - meta: flush_handlers
 
@@ -241,10 +257,12 @@
   until: not result.failed or 'process not presently configured with monit' not in result.msg
   retries: 5
   delay: 20
-  when: not ansible_check_mode
+  when: not ansible_check_mode and state == 'present'
 
 - name: Create 1GB Dummmy file for Emergency
   become: yes
   shell: "dd if=/dev/zero of={{ encrypted_root }}/emerg_delete.dummy count=1024 bs=1048576"
   args:
     creates: "{{ encrypted_root }}/emerg_delete.dummy"
+  when: state == 'present'
+

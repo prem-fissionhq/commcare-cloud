@@ -11,7 +11,7 @@
   get_url: url=https://github.com/markokr/pghashlib/archive/master.zip dest=/tmp/pghashlib.zip
   when: hashlib_stat.stat.exists == False
   tags: pghashlib
-
+  
 - name: Unzip pghashlib
   command: unzip pghashlib.zip
   args:
@@ -29,7 +29,7 @@
   notify:
     - Run ldconfig
     - Restart postgres
-  when: hashlib_stat.stat.exists == False
+  when: hashlib_stat.stat.exists == False and state == 'present'
   tags: pghashlib
 
 - name: Setup plproxy
@@ -49,7 +49,7 @@
     db: "{{item.name}}"
     port: "{{ postgresql_port }}"
   with_items: "{{ postgresql_dbs.all }}"
-  when: item.create and not is_pg_standby and ((item.host == inventory_hostname) or is_monolith|bool)
+  when: item.create and not is_pg_standby and ((item.host == inventory_hostname) or is_monolith|bool) and state == 'present'
   tags: pghashlib
 
 - name: Set vm.dirty_background_bytes
@@ -59,4 +59,5 @@
     value: '{{ dirty_background_bytes }}'
     state: present
     sysctl_file: /etc/sysctl.d/90-commcare-cloud.conf
-  when: dirty_background_bytes is defined
+  when: dirty_background_bytes is defined and state == 'present'
+
