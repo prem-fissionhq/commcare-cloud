@@ -30,7 +30,7 @@
       - python-psycopg2
       - unzip
   when: state == 'present'
-
+  
 - name: Install PostgreSQL & dependencies (bionic)
   apt:
     name:
@@ -100,7 +100,7 @@
     owner: postgres
     group: postgres
   when: state == 'present'
-  
+
 - name: assert replication slot config correct
   assert: { that: "replication_slot is not defined or replication_slot in hostvars[hot_standby_master]['postgresql_replication_slots']"}
 
@@ -135,6 +135,10 @@
   tags: configure
   notify: Reload postgres
   when: state == 'present'
+
+- pause:
+    seconds: 30
+    prompt: "waiting for postgres to start..."
 
 - meta: flush_handlers
 
@@ -265,4 +269,3 @@
   args:
     creates: "{{ encrypted_root }}/emerg_delete.dummy"
   when: state == 'present'
-

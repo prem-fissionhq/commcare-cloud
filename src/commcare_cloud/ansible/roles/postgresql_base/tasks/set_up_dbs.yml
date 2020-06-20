@@ -45,7 +45,8 @@
     db: 'postgres'
     encrypted: True
   when: not is_pg_standby
-  with_items: "{{ postgres_users.values() }}"
+  with_items:
+    - "{{ postgres_users.values() }}"
   tags:
     - postgres_users
   register: result
