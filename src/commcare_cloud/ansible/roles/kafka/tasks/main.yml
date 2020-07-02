@@ -1,10 +1,10 @@
 ---
 
 - name: create kafka group
-  group: name="{{ kafka_group }}" system=yes state=present
+  group: name="{{ kafka_group }}" system=yes state="{{ state }}"
 
 - name: add user "kafka"
-  user: name="{{ kafka_group }}" group="{{ kafka_group }}" shell=/sbin/nologin system=yes state=present
+  user: name="{{ kafka_group }}" group="{{ kafka_group }}" shell=/sbin/nologin system=yes state="{{ state }}"
 
 - name: Set JMX_PORT in /etc/environment
   lineinfile:

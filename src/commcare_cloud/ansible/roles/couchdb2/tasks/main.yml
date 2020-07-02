@@ -104,10 +104,10 @@
     - cron
     - backups
 
-- name: Create Daily Cron job (cleanup blobdb)
+- name: Create Daily Cron job (cleanup couchdb)
   become: yes
   cron:
-    name: "Backup blobdb daily"
+    name: "Backup couchdb daily"
     job: "/usr/local/sbin/create_couchdb_backup.sh daily {{ couchdb_backup_days }}"
     minute: 0
     hour: "{{ nadir_hour|default(0) }}"
@@ -120,10 +120,10 @@
     - cron
     - backups
 
-- name: Create Weekly Cron job (cleanup blobdb)
+- name: Create Weekly Cron job (cleanup couchdb)
   become: yes
   cron:
-    name: "Backup blobdb weekly"
+    name: "Backup couchdb weekly"
     job: "/usr/local/sbin/create_couchdb_backup.sh weekly {{ couchdb_backup_weeks * 7 }}"
     minute: 0
     hour: "{{ nadir_hour|default(0) }}"
@@ -159,12 +159,13 @@
     minute: 0
     hour: "{{ nadir_hour|default(0) }}"
     weekday: "1,2,3,4,5,6"
-    user: couchdb
+    user: couchdb  ## check the permissions of this user. and folder permissions
     cron_file: backup_couch
     state: '{{ "present" if backup_couch else "absent"}}'
   tags:
     - cron
     - backups
+
 
 - name: Create Weekly Cron job
   become: yes

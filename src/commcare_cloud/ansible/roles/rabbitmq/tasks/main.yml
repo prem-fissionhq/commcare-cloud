@@ -1,15 +1,15 @@
 ---
 - name: Add rabbitmq official apt key
   become: true
-  apt_key: id=0x0A9AF2115F4687BD29803A206B73A36E6026DFCA keyserver=hkps.pool.sks-keyservers.net state=present
+  apt_key: id=0x0A9AF2115F4687BD29803A206B73A36E6026DFCA keyserver=hkps.pool.sks-keyservers.net state="{{ state }}"
 
 - name: Add rabbitmq official apt repository
   become: true
-  apt_repository: repo='deb http://www.rabbitmq.com/debian/ testing main' state=present
+  apt_repository: repo='deb http://www.rabbitmq.com/debian/ testing main' state="{{ state }}"
 
 - name: Install rabbitmq
   become: true
-  apt: name=rabbitmq-server state=present
+  apt: name=rabbitmq-server state="{{ state }}"
   notify:
   - restart rabbitmq
 
@@ -23,40 +23,43 @@
   loop:
     - {"src": "rabbitmq.config.j2", "dest": "rabbitmq.config"}
     - {"src": "rabbitmq-env.conf.j2", "dest": "rabbitmq-env.conf"}
+  when: state == 'present'
 
 - name: Create directory for ulimt
   file:
     path: /etc/systemd/system/rabbitmq-server.service.d
     state: directory
     mode: '0755'
-  when: ansible_distribution_version == '18.04'
+  when: ansible_distribution_version == '18.04' and state == 'present'
 
 - name: setting Ulimit for rabbitmq
   raw: echo "[Service]\nLimitNOFILE=65536" > /etc/systemd/system/rabbitmq-server.service.d/limits.conf
-  when: ansible_distribution_version == '18.04'
+  when: ansible_distribution_version == '18.04' and state == 'present'
 
 - name: just force systemd to reread configs
   systemd:
     daemon_reload: yes
-  when: ansible_distribution_version == '18.04'
+  when: ansible_distribution_version == '18.04' and state == 'present'
 
 - name: Make sure RabbitMQ service is started before running config tasks
   become: yes
-  service: name=rabbitmq-server state=started
+  service: name=rabbitmq-server state=started 
+  when: state == 'present'
 
 - include: config-cluster.yml
-  when: rabbitmq_create_cluster|bool
+  when: rabbitmq_create_cluster|bool and state == 'present'
 
 - include: config.yml
-  when: not rabbitmq_create_cluster or ( ansible_fqdn == hostvars[rabbitmq_cluster_master]['ansible_fqdn'] )
+  when: not rabbitmq_create_cluster or ( ansible_fqdn == hostvars[rabbitmq_cluster_master]['ansible_fqdn'] ) and state == 'present'
 
 - name: Enable and start RabbitMQ service
   become: yes
   service: name=rabbitmq-server state=started
   tags: after-reboot
+  when: state == 'present'
 
 - include: join-cluster.yml
-  when: (rabbitmq_create_cluster | bool) and ( ansible_fqdn != hostvars[rabbitmq_cluster_master]['ansible_fqdn'] )
+  when: (rabbitmq_create_cluster | bool) and ( ansible_fqdn != hostvars[rabbitmq_cluster_master]['ansible_fqdn'] ) and state == 'present'
 
 - include: ha-policy.yml
-  when: (rabbitmq_create_cluster| bool ) and ( ansible_fqdn == hostvars[rabbitmq_cluster_master]['ansible_fqdn'] )
+  when: (rabbitmq_create_cluster| bool ) and ( ansible_fqdn == hostvars[rabbitmq_cluster_master]['ansible_fqdn'] ) and state == 'present'

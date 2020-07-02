@@ -4,7 +4,7 @@
   rabbitmq_plugin: >
     names=rabbitmq_management
     state=enabled
-
+  
 - name: Ensure vhost commcarehq is present
   become: true
   rabbitmq_vhost:

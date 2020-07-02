@@ -1,3 +1,4 @@
 - name: restart rabbitmq
   become: yes
   service: name=rabbitmq-server state=restarted
+  when: state == 'present'
