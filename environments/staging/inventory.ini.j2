@@ -41,11 +41,17 @@ rds_pg0
 rds_pgformplayer0
 
 {{ __pgformplayer_nlb__ }}
+{{ __pgmain_nlb__ }}
+{{ __pgucr_nlb__ }}
+{{ __pgsynclogs_nlb__ }}
 
 [postgresql:children]
 pgproxy2
 remote_postgresql
 pgformplayer_nlb
+pgmain_nlb
+pgucr_nlb
+pgsynclogs_nlb
 
 [pgbouncer:children]
 pgbouncer0
@@ -56,19 +62,10 @@ pgbouncer0
 
 {{ __couch8__ }}
 
-{{ __couch9__ }}
-
-{{ __couch10__ }}
-
-{{ __couch11__ }}
-
 [couchdb2:children]
 couch6
 couch7
 couch8
-couch9
-couch10
-couch11
 
 [couchdb2_proxy:children]
 couch6
